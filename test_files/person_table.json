@@ -1,0 +1,8 @@
+{
+  "table_name": "person",
+  "fields": [
+    {"name": "first_name", "field_type": "char(32)"},
+    {"name": "last_name", "field_type": "char(32)"},
+    {"name": "age", "field_type": "int(32)"}
+  ]
+}
