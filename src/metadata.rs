@@ -8,77 +8,59 @@ enum FieldError {
     BadType(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[tag = "type", content = "size"]]
 pub enum FieldType {
     Int(u64),
     Char(u64),
 }
 
-impl FieldType {
-    fn parse(ft: String) -> Result<FieldType, FieldError> {
-        if ft.as_str().starts_with("int") {
-            return Ok(FieldType::Int(64));
-        }
-
-        if ft.as_str().starts_with("char") {
-            return Ok(FieldType::Char(64));
-        }
-
-        Err(FieldError::BadType(ft.clone()))
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-struct FieldJson {
-    name: String,
-    field_type: String,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Field {
     name: String,
     field_type: FieldType,
 }
 
-impl Field {
-    fn from_json(json_field: FieldJson) -> Self {
-        Field {
-            name: json_field.name.clone(),
-            field_type: FieldType::parse(json_field.field_type).unwrap(),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct TableJson {
-    table_name: String,
-    fields: Vec<FieldJson>,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Table {
     table_name: String,
     fields: Vec<Field>,
 }
 
-impl Table {
-    fn from_json(json_table: TableJson) -> Self {
-        Table {
-            table_name: json_table.table_name.clone(),
-            fields: json_table
-                .fields
-                .iter()
-                .map(|json_field| Field::from_json(json_field.clone()))
-                .collect(),
-        }
-    }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TableMetadata {
+    table_name: String,
+    num_fields: usize,
+    row_length: u64,
+    fields: Vec<Field>,
 }
 
-pub fn parse_table(file_path: &str) -> anyhow::Result<Table> {
-    let f = File::open(file_path)?;
-    let reader = BufReader::new(f);
+impl Table {
+    pub fn new(file_path: &str) -> Self {
+        Table::parse_table(file_path).unwrap()
+    }
 
-    let json_table = serde_json::from_reader(reader)?;
+    pub fn parse_table(file_path: &str) -> anyhow::Result<Table> {
+        let f = File::open(file_path)?;
+        let reader = BufReader::new(f);
+        let table = serde_json::from_reader(reader)?;
 
-    Ok(Table::from_json(json_table))
+        Ok(table)
+    }
+
+    pub fn get_table_metadata(&self) -> TableMetadata {
+        TableMetadata {
+            table_name: self.table_name.clone(),
+            fields: self.fields.clone(),
+            num_fields: self.fields.len(),
+            row_length: self.fields.iter().fold(0, |mut acc, field| {
+                let value = match field.field_type {
+                    FieldType::Char(v) => v,
+                    FieldType::Int(v) => v,
+                };
+                acc += value;
+                acc
+            }),
+        }
+    }
 }
