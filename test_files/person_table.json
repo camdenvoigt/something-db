@@ -3,6 +3,6 @@
   "fields": [
     {"name": "first_name", "field_type": {"type": "Char", "size": 32}},
     {"name": "last_name", "field_type": {"type": "Char", "size": 32}},
-    {"name": "age", "field_type": {"type": "Int", "size": 32}}
+    {"name": "age", "field_type": {"type": "Int", "size": 64}}
   ]
 }

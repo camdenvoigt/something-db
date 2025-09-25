@@ -1,6 +1,11 @@
-use anyhow::Result;
-use std::fs::OpenOptions;
+use anyhow::{Error, Result};
+use serde::{Deserialize, Serialize};
+use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::io::{BufReader, Bytes};
+use thiserror::Error;
+
+use crate::metadata::{FieldType, TableMetadata};
 
 pub const DEFAULT_BLOCK_SIZE: usize = 4096;
 
@@ -34,5 +39,88 @@ impl DataProcessor {
         }
 
         Ok(self)
+    }
+}
+
+#[derive(Debug, Error)]
+enum InsertDataError {
+    #[error("Value was too large for field")]
+    ValueTooLarge,
+    #[error("value was the wrong type for field")]
+    MismatchedTypes,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InsertData {
+    table_name: String,
+    data: Vec<serde_json::Value>,
+}
+
+impl InsertData {
+    fn extract_string(v: serde_json::Value, size: u64) -> anyhow::Result<String, InsertDataError> {
+        if let serde_json::Value::String(val) = v {
+            if val.len() > size as usize {
+                Err(InsertDataError::ValueTooLarge)
+            } else {
+                Ok(val)
+            }
+        } else {
+            Err(InsertDataError::MismatchedTypes)
+        }
+    }
+
+    fn extract_int(v: serde_json::Value, size: u64) -> anyhow::Result<u64, InsertDataError> {
+        if let serde_json::Value::Number(val) = v {
+            if !val.is_u64() {
+                Err(InsertDataError::ValueTooLarge)
+            } else {
+                Ok(val.as_u64().unwrap())
+            }
+        } else {
+            Err(InsertDataError::MismatchedTypes)
+        }
+    }
+
+    pub fn save(&self) -> anyhow::Result<()> {
+        let table_metadata = TableMetadata::get(&self.table_name)?;
+        let file_path = format!("./db/{}_table", self.table_name);
+        let mut f: File;
+        if std::fs::exists(&file_path)? {
+            f = OpenOptions::new().append(true).open(file_path)?;
+        } else {
+            f = File::create(file_path)?;
+        }
+
+        for value in &self.data {
+            let mut row: Vec<u8> = vec![];
+            for field in &table_metadata.fields {
+                let val = value[&field.name].clone();
+                match field.field_type {
+                    FieldType::Char(n) => {
+                        let val = InsertData::extract_string(val, n)?;
+                        for b in val.bytes() {
+                            row.push(b);
+                        }
+                    }
+                    FieldType::Int(n) => {
+                        let val = InsertData::extract_int(val, n)?;
+                        for b in val.to_le_bytes() {
+                            row.push(b);
+                        }
+                    }
+                }
+            }
+
+            f.write_all(row.as_slice())?;
+        }
+
+        Ok(())
+    }
+
+    pub fn parse_data(file_path: &str) -> anyhow::Result<Self> {
+        let f = File::open(file_path)?;
+        let reader = BufReader::new(f);
+        let insert_data = serde_json::from_reader(reader)?;
+        Ok(insert_data)
     }
 }

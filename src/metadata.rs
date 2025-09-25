@@ -1,7 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
-use std::fs::OpenOptions;
 use std::io::Write;
 use std::{fs::File, io::BufReader};
 
@@ -14,8 +13,8 @@ pub enum FieldType {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Field {
-    name: String,
-    field_type: FieldType,
+    pub name: String,
+    pub field_type: FieldType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,10 +25,10 @@ pub struct Table {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TableMetadata {
-    table_name: String,
-    num_fields: usize,
-    row_length: u64,
-    fields: Vec<Field>,
+    pub table_name: String,
+    pub num_fields: usize,
+    pub row_length: u64,
+    pub fields: Vec<Field>,
 }
 
 impl Table {
@@ -53,7 +52,7 @@ impl Table {
             row_length: self.fields.iter().fold(0, |mut acc, field| {
                 let value = match field.field_type {
                     FieldType::Char(v) => v,
-                    FieldType::Int(v) => v,
+                    FieldType::Int(v) => v / 8,
                 };
                 acc += value;
                 acc
@@ -71,7 +70,7 @@ impl TableMetadata {
         Ok(())
     }
 
-    pub fn get(table_name: String) -> Result<Self> {
+    pub fn get(table_name: &String) -> Result<Self> {
         let file_path = format!("./db/{}_metadata.json", table_name);
         let f = File::open(file_path)?;
         let reader = BufReader::new(f);
