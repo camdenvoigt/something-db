@@ -1,0 +1,15 @@
+{
+  "table_name": "person",
+  "data" : [
+    {
+      "first_name": "Cam",
+      "last_name": "Voigt",
+      "age": 66
+    },
+    {
+      "first_name": "Logan",
+      "last_name": "Heitz",
+      "age": 58
+    }
+  ]
+}
