@@ -3,8 +3,11 @@ mod metadata;
 
 use crate::metadata::Table;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let table = Table::new("./test_files/person_table.json");
     println!("{:?}", table);
-    println!("{:?}", table.get_table_metadata());
+    let table_metadata = table.get_table_metadata();
+    println!("{:?}", table_metadata);
+    table_metadata.save()?;
+    Ok(())
 }

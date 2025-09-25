@@ -1,12 +1,9 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json::to_string;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::{fs::File, io::BufReader};
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-enum FieldError {
-    #[error("Bad Field Type: `{0}`")]
-    BadType(String),
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[tag = "type", content = "size"]]
@@ -62,5 +59,24 @@ impl Table {
                 acc
             }),
         }
+    }
+}
+
+impl TableMetadata {
+    pub fn save(&self) -> Result<()> {
+        let file_name = format!("./db/{}_metadata.json", self.table_name);
+        let json_obj = to_string(self)?;
+        let mut f = File::create(file_name)?;
+        f.write_all(json_obj.as_bytes())?;
+        Ok(())
+    }
+
+    pub fn get(table_name: String) -> Result<Self> {
+        let file_path = format!("./db/{}_metadata.json", table_name);
+        let f = File::open(file_path)?;
+        let reader = BufReader::new(f);
+        let table_metadata = serde_json::from_reader(reader)?;
+
+        Ok(table_metadata)
     }
 }
